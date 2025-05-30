@@ -28,10 +28,9 @@ static inline uint32_t pini_and_core(uint32_t a, uint32_t b, uint32_t r) {
       "and %[temp], %[a], %[temp]\n\t"
       "bic %[s], %[r], %[a]\n\t"
       "eor %[s], %[s], %[temp]"
-      : [ s ] "=r"(s),
-        [ temp ] "=&r"(
-            temp) /* outputs, use temp as an arbitrary-location clobber */
-      : [ a ] "r"(a), [ b ] "r"(b), [ r ] "r"(r) /* inputs */
+      : [s] "=r"(s), [temp] "=&r"(temp)    /* outputs, use temp as an
+                                              arbitrary-location clobber */
+      : [a] "r"(a), [b] "r"(b), [r] "r"(r) /* inputs */
   );
   return s;
 }
@@ -125,7 +124,7 @@ uint32_t unmask_boolean(size_t nshares, const uint32_t *in, size_t in_stride) {
  *            - size_t in_stride: in buffer stride
  **************************************************/
 void copy_sharing_c(size_t nshares, uint32_t *out, size_t out_stride,
-                  const uint32_t *in, size_t in_stride) {
+                    const uint32_t *in, size_t in_stride) {
   for (size_t i = 0; i < nshares; i++) {
     out[i * out_stride] = in[i * in_stride];
   }
@@ -350,7 +349,8 @@ void secadd_constant(size_t nshares, size_t kbits, size_t kbits_out,
                    carry, 1, &in1[i * in1_data_stride], in1_msk_stride);
 
         // add the kbits_out of the constant
-        secxor_cst(out + kbits*out_data_stride, 0xFFFFFFFF * ((constant >> kbits) & 0x1), &dummy);
+        secxor_cst(out + kbits * out_data_stride,
+                   0xFFFFFFFF * ((constant >> kbits) & 0x1), &dummy);
 
         return;
       }
@@ -370,7 +370,8 @@ void secadd_constant(size_t nshares, size_t kbits, size_t kbits_out,
                    carry, 1, &in1[i * in1_data_stride], in1_msk_stride);
 
         // add the kbits_out of the constant
-        secxor_cst(out + kbits*out_data_stride, 0xFFFFFFFF * ((constant >> kbits) & 0x1), &dummy);
+        secxor_cst(out + kbits * out_data_stride,
+                   0xFFFFFFFF * ((constant >> kbits) & 0x1), &dummy);
         return;
       }
       masked_and(nshares, carry, 1, carry, 1, &in1[i * in1_data_stride],
@@ -636,9 +637,8 @@ void secb2a_modp(size_t nshares,
 
   // unmask b_str and set to the last share of the output
   for (i = 0; i < COEF_NBITS; i++) {
-    RefreshIOS_rec(nshares, nshares, &b_str[i * nshares], 1);
-    RefreshIOS_rec(nshares, nshares, &b_str[i * nshares + COEF_NBITS * nshares],
-                   1);
+    refreshIOS(&b_str[i * nshares], 1);
+    refreshIOS(&b_str[i * nshares + COEF_NBITS * nshares], 1);
 
     in[i * in_data_stride + (nshares - 1) * in_msk_stride] = 0;
     in[i * in_data_stride + (nshares - 1) * in_msk_stride +
@@ -652,34 +652,99 @@ void secb2a_modp(size_t nshares,
   }
 }
 
+void sec_zero_sh_rec_c(size_t nshares, uint32_t *x) {
+  uint32_t r;
+  if (nshares == 1) {
+    x[0] = 0;
+  } else if (nshares == 2) {
+    r = get_random();
+    x[0] = r;
+    x[1] ^= r;
+  } else {
+    sec_zero_sh_rec_c(nshares / 2, x);
+    sec_zero_sh_rec_c(nshares - (nshares / 2), &x[nshares / 2]);
+    for (unsigned int i = 0; i < nshares / 2; i++) {
+      r = rand32();
+      x[i] ^= r;
+      x[i + nshares / 2] ^= r;
+    }
+  }
+}
+
+void sec_zero_sh_rec_asm(size_t nshares, uint32_t *x) {
+  uint32_t r;
+  if (nshares == 1) {
+    x[0] = 0;
+  } else if (nshares == 2) {
+    r = get_random();
+    x[0] = r;
+    x[1] ^= r;
+  } else {
+    sec_zero_sh_rec_asm(nshares / 2, x);
+    sec_zero_sh_rec_asm(nshares - (nshares / 2), &x[nshares / 2]);
+    for (unsigned int i = 0; i < nshares / 2; i++) {
+      r = rand32();
+      x[i] ^= r;
+      x[i + nshares / 2] ^= r;
+    }
+  }
+}
+
+void refresh_pair_c(uint32_t *x, uint32_t *y) {
+  uint32_t r = get_random();
+  *x ^= r;
+  *y ^= r;
+}
+
+void refresh_pair_asm(uint32_t *x, uint32_t *y) {
+  uint32_t temp, dummy;
+  asm("bl get_random\n\t"
+      "ldr %[temp], [%[x]]\n\t"
+      "eor %[temp], %[temp], r0\n\t"
+      "str %[temp], [%[x]]\n\t"
+      "ldr %[temp], [%[y]]\n\t"
+      "eor %[temp], %[temp], r0\n\t"
+      "str %[temp], [%[y]]\n\t"
+      "ldr %[temp], [%[dummy]]\n\t"
+      "str %[temp], [%[dummy]]\n\t"
+      "mov r0, #0\n\t"
+      : /* outputs, use temp as an arbitrary-location clobber */
+      [temp] "=&r"(temp)
+      : /* inputs */
+      [x] "r"(x), [y] "r"(y), [dummy] "r"(&dummy)
+      : /* clobbers */
+      "r0");
+}
+
+void sec_zero_sh_rec(size_t nshares, uint32_t *x) {
+  if (nshares == 1) {
+    x[0] = 0;
+  } else if (nshares == 2) {
+    x[0] = 0;
+    x[1] = 0;
+    refresh_pair(x, x + 1);
+  } else {
+    sec_zero_sh_rec(nshares / 2, x);
+    sec_zero_sh_rec(nshares - (nshares / 2), x + nshares / 2);
+    for (unsigned int i = 0; i < nshares / 2; i++) {
+      refresh_pair(x + i, x + i + nshares / 2);
+    }
+  }
+}
+
 /*************************************************
- * Name:        RefreshIOS_rec
+ * Name:        refreshIOS
  *
  * Description: IOS refresh on boolean sharing
  *
- * Arguments: - size_t nshares: number of shares
- *            - size_t d: current recursion shars:
+ * Arguments:
  *            - uint32_t *x: input buffer
  *            - size_t x_msk_stride: stride between shares
  **************************************************/
-void RefreshIOS_rec(size_t nshares, size_t d, uint32_t *x,
-                    size_t x_msk_stride) {
-  uint32_t r;
-  if (d == 1) {
-  } else if (d == 2) {
-    r = get_random();
-    x[0 * x_msk_stride] ^= r;
-    x[1 * x_msk_stride] ^= r;
-  } else {
-    RefreshIOS_rec(nshares, d / 2, x, x_msk_stride);
-    RefreshIOS_rec(nshares, d - d / 2, &x[(d / 2) * x_msk_stride],
-                   x_msk_stride);
-    for (unsigned int i = 0; i < d / 2; i++) {
-      r = rand32();
-      x[i * x_msk_stride] ^= r;
-      x[(i + d / 2) * x_msk_stride] ^= r;
-    }
-  }
+void refreshIOS(uint32_t *x, size_t x_msk_stride) {
+  uint32_t sh0[NSHARES];
+  sec_zero_sh_rec(NSHARES, sh0);
+  masked_xor(NSHARES, x, x_msk_stride, x, x_msk_stride, sh0, 1);
 }
 
 /*************************************************
@@ -950,7 +1015,7 @@ static void refresh_add(size_t nshares, int16_t *a, size_t a_msk_stride) {
     rand_q(&pool[i]);
   }
 
-  if (((REFRESH_ADD_POOL_SIZE)&0x1) == 1) {
+  if (((REFRESH_ADD_POOL_SIZE) & 0x1) == 1) {
     int16_t r[2];
     rand_q(r);
     pool[REFRESH_ADD_POOL_SIZE - 1] = r[0];
