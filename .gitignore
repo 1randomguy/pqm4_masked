@@ -10,3 +10,5 @@ bin/
 obj/
 bin-host/
 compile_commands.json
+.env
+.direnv/
