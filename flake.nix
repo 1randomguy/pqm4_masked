@@ -19,9 +19,9 @@
         pythonPackages = pkgs.python3Packages;
         # The system C-libraries that pip wheels need
         dynamic-libs = with pkgs; [
-          # libusb1       # For pyusb/ChipWhisperer
-          # stdenv.cc.cc.lib # For PyZMQ/Jupyter
-          # zlib
+          libusb1       # For pyusb/ChipWhisperer
+          stdenv.cc.cc.lib # For PyZMQ/Jupyter
+          zlib
         ];
       in
       {
