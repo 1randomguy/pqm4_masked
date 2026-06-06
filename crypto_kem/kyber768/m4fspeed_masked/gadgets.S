@@ -24,6 +24,7 @@ r6 -> 4 * b_stride
 r7 -> NSHARES
 r8 -> a
 */
+.thumb_func
 my_masked_and_asm:
     stmdb sp!, {r4,r5,r6,r7,r8,r9,sl,fp,r12,lr} // write done 10 registers -> 40 bytes
     ldr r4, [sp, #40]
@@ -162,6 +163,7 @@ r8 -> tmp
 r9 -> tmp
 */
 
+.thumb_func
 my_masked_xor_asm:
     stmdb sp!, {r4,r5,r6,r7,r8,r9,sl,fp,r12,lr} // write done 10 registers -> 40 bytes
     ldr r4, [sp, #40]
@@ -193,6 +195,7 @@ loop_ab_xor: // loop to compute z_tmp[i] = a[i * a_stride] & b[i * b_stride];
     ldmia.w sp!, {r4,r5,r6,r7,r8,r9,sl,fp,r12,pc}
 
 
+.thumb_func
 copy_sharing_asm:
    	cbz	r0, cp_out 
    	push	{r4, r5, r6,r0}
