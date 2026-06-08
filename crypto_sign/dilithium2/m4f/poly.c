@@ -7,8 +7,7 @@
 #include "rounding.h"
 #include "symmetric.h"
 
-#include <stdio.h>
-#include "hal.h"
+
 
 #ifdef DBENCH
 #include "test/cpucycles.h"

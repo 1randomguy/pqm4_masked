@@ -27,8 +27,7 @@
 #include "symmetric.h"
 #include "vector.h"
 
-#include "hal.h"
-#include <stdio.h>
+
 
 void msk_poly_reduce(msk_poly *a);
 void msk_poly_freeze(msk_poly *a);

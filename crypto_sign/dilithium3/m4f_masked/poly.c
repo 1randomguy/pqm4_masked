@@ -5,9 +5,7 @@
 #include "rounding.h"
 #include "symmetric.h"
 #include "vector.h"
-#include <stdint.h>
 
-#include "hal.h"
 
 /*************************************************
  * Name:        poly_reduce

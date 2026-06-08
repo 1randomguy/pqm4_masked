@@ -25,8 +25,7 @@
 #include "symmetric.h"
 #include "vector.h"
 
-#include "hal.h"
-#include <stdio.h>
+
 
 void msk_poly_reduce(msk_poly *a) {
   for (int d = 0; d < NSHARES; d++) {

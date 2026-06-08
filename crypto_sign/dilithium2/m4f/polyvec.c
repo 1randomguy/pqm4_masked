@@ -3,8 +3,7 @@
 #include "polyvec.h"
 #include "poly.h"
 
-#include <stdio.h>
-#include "hal.h"
+
 
 /*************************************************
 * Name:        expand_mat
